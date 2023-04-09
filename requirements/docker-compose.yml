@@ -1,0 +1,55 @@
+version: '3.9'
+
+networks:
+  net:
+    driver: bridge
+
+services:
+  server:
+    build:
+      context: chroma
+      dockerfile: Dockerfile
+    volumes:
+      - ./chroma/:/chroma
+      - index_data:/index_data
+    command: uvicorn chromadb.app:app --reload --workers 1 --host 0.0.0.0 --port 8000 --log-config log_config.yml
+    environment:
+      - CHROMA_DB_IMPL
+      - CLICKHOUSE_HOST
+      - CLICKHOUSE_PORT
+    ports:
+      - "8000:8000"
+    depends_on:
+      - clickhouse
+    networks:
+      - net
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:22.9-alpine
+    environment:
+      - ALLOW_EMPTY_PASSWORD
+      - CLICKHOUSE_TCP_PORT
+      - CLICKHOUSE_HTTP_PORT
+      - CLICKHOUSE_DB
+      - CLICKHOUSE_USER
+      - CLICKHOUSE_HOST
+      - CLICKHOUSE_PASSWORD
+      - CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT
+    ports:
+      - '8123:8123'
+      - '9000:9000'
+    volumes:
+      - clickhouse_data:/bitnami/clickhouse
+      - backups:/backups
+      - ./clickhouse/config/backup_disk.xml:/etc/clickhouse-server/config.d/backup_disk.xml
+      - ./clickhouse/config/chroma_users.xml:/etc/clickhouse-server/users.d/chroma.xml
+    networks:
+      - net
+
+volumes:
+  clickhouse_data:
+    driver: local
+  index_data:
+    driver: local
+  backups:
+    driver: local
